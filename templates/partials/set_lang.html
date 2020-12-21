@@ -1,0 +1,23 @@
+<div id="lang_sub">
+    <form method="post" action="/language">
+        <fieldset>
+            <div>
+                <select id="id_setlang" name="set_lang">
+                    {% for domain, language in languages.items() %}
+                    <option
+                        value="{{ domain }}"
+                        {% if lang == domain %}
+                        selected="selected"
+                        {% endif %}
+                    >
+                        {{ language }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <input type="hidden" name="next" value="{{ request.url.path }}">
+                <input type="submit" value="Go">
+            </div>
+        </fieldset>
+    </form>
+</div>
