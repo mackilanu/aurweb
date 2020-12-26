@@ -1,12 +1,15 @@
 import http
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 import aurweb.config
 
+from aurweb.auth import BasicAuthBackend
 from aurweb.db import get_engine
 from aurweb.routers import html, sso
 
@@ -15,13 +18,16 @@ routes = set()
 # Setup the FastAPI app.
 app = FastAPI()
 app.mount("/static/css",
-          StaticFiles(directory="web/html/css"),
+          StaticFiles(directory=os.path.join(
+              aurweb.config.get("options", "aurwebdir"), "web/html/css")),
           name="static_css")
 app.mount("/static/js",
-          StaticFiles(directory="web/html/js"),
+          StaticFiles(directory=os.path.join(
+              aurweb.config.get("options", "aurwebdir"), "web/html/js")),
           name="static_js")
 app.mount("/static/images",
-          StaticFiles(directory="web/html/images"),
+          StaticFiles(directory=os.path.join(
+              aurweb.config.get("options", "aurwebdir"), "web/html/images")),
           name="static_images")
 
 
@@ -31,10 +37,15 @@ async def app_startup():
     if not session_secret:
         raise Exception("[fastapi] session_secret must not be empty")
 
+    # Add application middlewares.
+    app.add_middleware(AuthenticationMiddleware, backend=BasicAuthBackend())
     app.add_middleware(SessionMiddleware, secret_key=session_secret)
+
+    # Add application routes.
     app.include_router(sso.router)
     app.include_router(html.router)
 
+    # Initialize the database engine and ORM.
     get_engine()
 
 # NOTE: Always keep this dictionary updated with all routes
