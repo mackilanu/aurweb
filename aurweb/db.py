@@ -1,14 +1,40 @@
 import math
 
 import aurweb.config
+import aurweb.util
 
-engine = None  # See get_engine
+# Global engine object initialized by get_engine().
+engine = None
 
-# ORM Session class.
+# ORM Session class initialized by get_engine().
 Session = None
 
-# Global ORM Session object.
+# Global ORM Session object initialized by get_engine().
 session = None
+
+# Global introspected object memo.
+_introspected = dict()
+
+
+def make_random_value(table, column):
+    global _introspected
+
+    # If the target column is not yet introspected, store its introspection
+    # object into our global `introspected` memo.
+    if str(column) not in _introspected:
+        from sqlalchemy import inspect
+        target_column = str(column).split('.')[-1]
+        col = list(filter(lambda c: c.name == target_column,
+                          inspect(table).columns))[0]
+        _introspected[str(column)] = col
+
+    col = _introspected.get(str(column))
+    length = col.type.length
+
+    string = aurweb.util.make_random_string(length)
+    while session.query(table).filter(column == string).first():
+        string = aurweb.util.make_random_string(length)
+    return string
 
 
 def get_sqlalchemy_url():
