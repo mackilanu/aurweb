@@ -1,14 +1,13 @@
 import hashlib
-import random
-import string
 
 from datetime import datetime
 
 import bcrypt
 
 from fastapi import Request
-from sqlalchemy import update
 from sqlalchemy.orm import backref, mapper, relationship
+
+import aurweb.config
 
 from aurweb.models.account_type import AccountType
 from aurweb.models.ban import is_banned
@@ -17,6 +16,7 @@ from aurweb.schema import Users
 
 class User:
     """ An ORM model of a single Users record. """
+    authenticated = False
 
     def __init__(self, **kwargs):
         self.AccountTypeID = kwargs.get("AccountTypeID")
@@ -54,11 +54,9 @@ class User:
         self.OwnershipNotify = kwargs.get("OwnershipNotify")
         self.SSOAccountID = kwargs.get("SSOAccountID")
 
-        self._authenticated = False
-
     def is_authenticated(self):
         """ Return internal authenticated state. """
-        return self._authenticated
+        return self.authenticated
 
     def authenticate(self, password: str):
         """ Check authentication against a given password. """
@@ -87,12 +85,10 @@ class User:
         if decision:
             # If so, update internal salt and password with bcrypt.
             self.Salt = bcrypt.gensalt().decode("utf-8")
-            passwd = bcrypt.hashpw(password.encode("utf-8"),
-                                   self.Salt.encode("utf-8")).decode("utf-8")
-            self.Passwd = passwd
-
-            stmt = update(User).where(User.ID == self.ID).values(Salt=self.Salt, Passwd=self.Passwd)
-            session.execute(stmt)
+            self.Passwd = bcrypt.hashpw(
+                password.encode("utf-8"),
+                self.Salt.encode("utf-8")
+            ).decode("utf-8")
             session.commit()
 
         return decision
@@ -102,48 +98,59 @@ class User:
             not is_banned(request) and \
             not self.Suspended
 
-    def login(self, request: Request, password: str):
+    def login(self, request: Request, password: str, session_time=0):
         """ Login and authenticate a request. """
 
         if not self._login_approved(request):
             return (False, None)
 
-        self._authenticated = self.authenticate(password)
-        if not self._authenticated:
+        self.authenticated = self.authenticate(password)
+        if not self.authenticated:
             return (False, None)
 
         from aurweb.db import session
-        from aurweb.models.session import Session
+        from aurweb.models.session import Session, generate_unique_sid
 
-        self.LastLogin = datetime.utcnow()
+        self.LastLogin = datetime.timestamp(datetime.utcnow())
         self.LastLoginIPAddress = request.client.host
-
-        session.execute(update(User).where(User.ID == self.ID)
-                        .values(LastLogin=self.LastLogin,
-                                LastLoginIPAddress=self.LastLoginIPAddress))
-
-        sid = ''.join(random.choices(string.ascii_uppercase +
-                                     string.digits, k=32))
+        session.commit()
 
         user_session = session.query(Session)\
             .filter(Session.UsersID == self.ID).first()
 
+        sid = None
+
+        now_ts = datetime.utcnow().timestamp()
+        session_ts = now_ts + (
+            session_time if session_time
+            else aurweb.config.getint("options", "login_timeout")
+        )
+
         if not user_session:
+            sid = generate_unique_sid()
             user_session = Session(UsersID=self.ID,
                                    SessionID=sid,
-                                   LastUpdateTS=datetime.utcnow())
+                                   LastUpdateTS=session_ts)
             session.add(user_session)
-            session.commit()
         else:
-            user_session.LastUpdateTS = datetime.utcnow()
-            session.execute(update(Session)
-                            .where(Session.UsersID == user_session.UsersID)
-                            .values(LastUpdateTS=user_session.LastUpdateTS))
-            session.commit()
+            last_updated = user_session.LastUpdateTS
+            if last_updated and last_updated < now_ts:
+                # If LastUpdateTS is not zero and the current time has
+                # passed it, generate a new session ID.
+                sid = generate_unique_sid()
+                user_session.SessionID = sid
+            else:
+                sid = user_session.SessionID
+            user_session.LastUpdateTS = session_ts
 
-        request.cookies["AURSID"] = sid
+        session.commit()
 
-        return (self._authenticated, sid)
+        request.cookies["AURSID"] = user_session.SessionID
+        return (self.authenticated, sid)
+
+    def logout(self, request):
+        del request.cookies["AURSID"]
+        self.authenticated = False
 
     def __repr__(self):
         return "<User(ID='%s', AccountType='%s', Username='%s')>" % (

@@ -31,7 +31,7 @@ def setup():
                      AccountType=account_type)
 
 
-def test_user():
+def test_user_login_logout():
     """ Test creating a user and reading its columns. """
     from aurweb.db import session
 
@@ -74,6 +74,11 @@ def test_user():
     assert repr(user) == f"<User(ID='{user.ID}', " + \
         "AccountType='User', Username='test')>"
 
+    # Test logout.
+    user.logout(request)
+    assert "AURSID" not in request.cookies
+    assert not user.is_authenticated()
+
 
 def test_user_login_twice():
     request = Request()
@@ -85,7 +90,7 @@ def test_user_login_twice():
     assert _
 
 
-def test_user_banned():
+def test_user_login_banned():
     from aurweb.db import session
 
     # Add ban for the next 30 seconds.
@@ -100,7 +105,7 @@ def test_user_banned():
     assert not _
 
 
-def test_user_suspended():
+def test_user_login_suspended():
     from aurweb.db import session
 
     user.Suspended = True
