@@ -18,3 +18,9 @@ class AccountType:
 
 
 mapper(AccountType, AccountTypes, confirm_deleted_rows=False)
+
+
+def get_account_type(name):
+    from aurweb.db import session
+    return session.query(AccountType).filter(
+        AccountType.AccountType == name).first()
