@@ -11,7 +11,7 @@ import aurweb.config
 
 from aurweb.auth import BasicAuthBackend
 from aurweb.db import get_engine
-from aurweb.routers import auth, html, sso
+from aurweb.routers import accounts, auth, html, sso
 
 routes = set()
 
@@ -45,6 +45,7 @@ async def app_startup():
     app.include_router(sso.router)
     app.include_router(html.router)
     app.include_router(auth.router)
+    app.include_router(accounts.router)
 
     # Initialize the database engine and ORM.
     get_engine()

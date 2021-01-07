@@ -172,3 +172,15 @@ def test_connection_execute_paramstyle_unsupported():
             "SELECT * FROM AccountTypes WHERE AccountType = ?",
             ["User"]
         ).fetchall()
+
+
+@mock.patch("mysql.connector.paramstyle", "qmark")
+def test_connection_executor_mysql_paramstyle():
+    executor = db.ConnectionExecutor(None, backend="mysql")
+    assert executor.paramstyle() == "qmark"
+
+
+@mock.patch("sqlite3.paramstyle", "pyformat")
+def test_connection_executor_sqlite_paramstyle():
+    executor = db.ConnectionExecutor(None, backend="sqlite")
+    assert executor.paramstyle() == "pyformat"

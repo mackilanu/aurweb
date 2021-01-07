@@ -5,6 +5,8 @@ from datetime import datetime
 import bcrypt
 import pytest
 
+import aurweb.config
+
 from aurweb.models.account_type import AccountType
 from aurweb.models.ban import Ban
 from aurweb.models.user import User
@@ -134,3 +136,14 @@ def test_user_login_with_outdated_sid():
     authenticated, sid = user.login(Request(), "testPassword")
     assert authenticated and user.is_authenticated()
     assert sid != "stub"
+
+
+def test_user_update_password():
+    user.update_password("secondPassword")
+    assert not user.authenticate("testPassword")
+    assert user.authenticate("secondPassword")
+
+
+def test_user_minimum_passwd_length():
+    passwd_min_len = aurweb.config.getint("options", "passwd_min_len")
+    assert User.minimum_passwd_length() == passwd_min_len

@@ -13,8 +13,12 @@ from aurweb.models.session import Session
 from aurweb.testing import setup_test_db
 from aurweb.testing.models import make_user
 
-client = TestClient(app)
+# Some test global constants.
+TEST_USERNAME = "test"
+TEST_EMAIL = "test@example.org"
 
+# Global mutables.
+client = TestClient(app)
 user = None
 
 
@@ -25,7 +29,7 @@ def setup():
     setup_test_db("Users", "Sessions", "Bans")
 
     account_type = get_account_type("User")
-    user = make_user(Username="test", Email="test@example.org",
+    user = make_user(Username=TEST_USERNAME, Email=TEST_EMAIL,
                      RealName="Test User", Passwd="testPassword",
                      AccountType=account_type)
 
@@ -38,22 +42,54 @@ def test_login_logout():
     }
 
     with client as request:
-        response = client.get("/login")
+        # First, let's test get /login.
+        response = request.get("/login")
         assert response.status_code == int(HTTPStatus.OK)
 
+        # Next, let's post data to /login.
         response = request.post("/login", data=post_data)
         assert response.status_code == int(HTTPStatus.SEE_OTHER)
 
-        response = request.get(response.headers.get("location"), cookies={
-            "AURSID": response.cookies.get("AURSID")
-        })
+        # Simulate following the redirect location from above's response.
+        response = request.get(response.headers.get("location"))
         assert response.status_code == int(HTTPStatus.OK)
 
-        response = request.post("/logout", data=post_data, cookies={
-            "AURSID": response.cookies.get("AURSID")
-        })
+        # Now, let's verify that we receive 403 Forbidden when we
+        # try to get /login as an authenticated user.
+        response = request.get("/login")
+        assert response.status_code == int(HTTPStatus.FORBIDDEN)
+
+        # Now let's actually logout.
+        response = request.post("/logout")
         assert response.status_code == int(HTTPStatus.SEE_OTHER)
+
     assert "AURSID" not in response.cookies
+
+
+def test_authenticated_login_forbidden():
+    post_data = {
+        "user": "test",
+        "passwd": "testPassword",
+        "next": "/"
+    }
+
+    with client as request:
+        # Login.
+        response = request.post("/login", data=post_data)
+        assert response.status_code == int(HTTPStatus.SEE_OTHER)
+
+        # Now, let's verify that we receive 403 Forbidden when we
+        # try to get /login as an authenticated user.
+        response = request.get("/login")
+        assert response.status_code == int(HTTPStatus.FORBIDDEN)
+
+
+def test_unauthenticated_logout_unauthorized():
+    with client as request:
+        # Alright, let's verify that attempting to /logout when not
+        # authenticated returns 401 Unauthorized.
+        response = request.get("/logout")
+        assert response.status_code == int(HTTPStatus.UNAUTHORIZED)
 
 
 def test_login_missing_username():

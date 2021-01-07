@@ -54,6 +54,16 @@ class User:
         self.OwnershipNotify = kwargs.get("OwnershipNotify")
         self.SSOAccountID = kwargs.get("SSOAccountID")
 
+    def update_password(self, password):
+        from aurweb.db import session
+        self.Passwd = bcrypt.hashpw(password.encode(),
+                                    bcrypt.gensalt()).decode()
+        session.commit()
+
+    @staticmethod
+    def minimum_passwd_length():
+        return aurweb.config.getint("options", "passwd_min_len")
+
     def is_authenticated(self):
         """ Return internal authenticated state. """
         return self.authenticated
