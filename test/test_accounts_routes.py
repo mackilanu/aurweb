@@ -50,7 +50,7 @@ def test_get_passreset():
 
 
 def test_get_passreset_translation():
-    # Test that translation works.
+    # Test that translation works; set it to de.
     with client as request:
         response = request.get("/passreset", cookies={"AURLANG": "de"})
 
@@ -63,6 +63,10 @@ def test_get_passreset_translation():
 
     # And the button.
     assert "Weiter".encode("utf-8") in response.content
+
+    # Restore english.
+    with client as request:
+        response = request.get("/passreset", cookies={"AURLANG": "en"})
 
 
 def test_get_passreset_with_resetkey():

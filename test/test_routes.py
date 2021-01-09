@@ -7,14 +7,25 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aurweb.asgi import app
+from aurweb.models.account_type import get_account_type
 from aurweb.testing import setup_test_db
+from aurweb.testing.models import make_user
+from aurweb.testing.requests import Request
 
 client = TestClient(app)
+user = None
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def setup():
-    setup_test_db("Users", "Session")
+    global user
+
+    setup_test_db("Users", "Sessions")
+
+    account_type = get_account_type("User")
+    user = make_user(Username="test", Email="test@example.org",
+                     RealName="Test User", Passwd="testPassword",
+                     AccountType=account_type)
 
 
 def test_index():
@@ -34,7 +45,7 @@ def test_favicon():
 
 
 def test_language():
-    """ Test the language post route at '/language'. """
+    """ Test the language post route as a guest user. """
     post_data = {
         "set_lang": "de",
         "next": "/"
@@ -53,6 +64,24 @@ def test_language_invalid_next():
     with client as req:
         response = req.post("/language", data=post_data)
     assert response.status_code == int(HTTPStatus.BAD_REQUEST)
+
+
+def test_user_language():
+    """ Test the language post route as an authenticated user. """
+    post_data = {
+        "set_lang": "de",
+        "next": "/"
+    }
+
+    authenticated, sid = user.login(Request(), "testPassword")
+    assert authenticated
+
+    with client as req:
+        response = req.post("/language", data=post_data,
+                            cookies={"AURSID": sid})
+    assert response.status_code == int(HTTPStatus.SEE_OTHER)
+    assert user.LangPreference == "de"
+
 
 def test_language_query_params():
     """ Test the language post route with query params. """
