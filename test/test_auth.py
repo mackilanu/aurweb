@@ -5,7 +5,8 @@ import pytest
 from starlette.authentication import AuthenticationError
 
 from aurweb.auth import BasicAuthBackend
-from aurweb.models.account_type import get_account_type
+from aurweb.db import query
+from aurweb.models.account_type import AccountType
 from aurweb.testing import setup_test_db
 from aurweb.testing.models import make_session, make_user
 from aurweb.testing.requests import Request
@@ -22,15 +23,11 @@ def setup():
 
     setup_test_db("Users", "Sessions")
 
-    from aurweb.db import session
-
-    account_type = get_account_type("User")
+    account_type = query(AccountType,
+                         AccountType.AccountType == "User").first()
     user = make_user(Username="test", Email="test@example.com",
                      RealName="Test User", Passwd="testPassword",
                      AccountType=account_type)
-
-    session.add(user)
-    session.commit()
 
     backend = BasicAuthBackend()
     request = Request()

@@ -37,6 +37,24 @@ def make_random_value(table, column):
     return string
 
 
+def query(model, *args, **kwargs):
+    return session.query(model).filter(*args, **kwargs)
+
+
+def create(model, *args, **kwargs):
+    instance = model(*args, **kwargs)
+    session.add(instance)
+    session.commit()
+    return instance
+
+
+def delete(model, *args, **kwargs):
+    instance = session.query(model).filter(*args, **kwargs)
+    for record in instance:
+        session.delete(record)
+    session.commit()
+
+
 def get_sqlalchemy_url():
     """
     Build an SQLAlchemy for use with create_engine based on the aurweb configuration.

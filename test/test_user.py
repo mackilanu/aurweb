@@ -7,6 +7,7 @@ import pytest
 
 import aurweb.config
 
+from aurweb.db import query
 from aurweb.models.account_type import AccountType
 from aurweb.models.ban import Ban
 from aurweb.models.user import User
@@ -19,15 +20,12 @@ account_type, user = None, None
 
 @pytest.fixture(autouse=True)
 def setup():
-    from aurweb.db import session
-
     global account_type, user
 
     setup_test_db("Users", "Sessions", "Bans")
 
-    account_type = session.query(AccountType).filter(
-        AccountType.AccountType == "User").first()
-
+    account_type = query(AccountType,
+                         AccountType.AccountType == "User").first()
     user = make_user(Username="test", Email="test@example.org",
                      RealName="Test User", Passwd="testPassword",
                      AccountType=account_type)

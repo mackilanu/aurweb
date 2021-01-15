@@ -7,7 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aurweb.asgi import app
-from aurweb.models.account_type import get_account_type
+from aurweb.db import query
+from aurweb.models.account_type import AccountType
 from aurweb.testing import setup_test_db
 from aurweb.testing.models import make_user
 from aurweb.testing.requests import Request
@@ -22,7 +23,8 @@ def setup():
 
     setup_test_db("Users", "Sessions")
 
-    account_type = get_account_type("User")
+    account_type = query(AccountType,
+                         AccountType.AccountType == "User").first()
     user = make_user(Username="test", Email="test@example.org",
                      RealName="Test User", Passwd="testPassword",
                      AccountType=account_type)

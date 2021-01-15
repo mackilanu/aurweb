@@ -3,6 +3,7 @@ import re
 import sqlite3
 import tempfile
 
+from datetime import datetime
 from unittest import mock
 
 import mysql.connector
@@ -11,6 +12,7 @@ import pytest
 import aurweb.config
 
 from aurweb import db
+from aurweb.models.ban import Ban
 from aurweb.testing import setup_test_db
 
 
@@ -39,7 +41,7 @@ class DBConnection:
 
 @pytest.fixture(autouse=True)
 def setup_db():
-    setup_test_db()
+    setup_test_db("Bans")
 
 
 def test_sqlalchemy_sqlite_url():
@@ -184,3 +186,15 @@ def test_connection_executor_mysql_paramstyle():
 def test_connection_executor_sqlite_paramstyle():
     executor = db.ConnectionExecutor(None, backend="sqlite")
     assert executor.paramstyle() == "pyformat"
+
+
+def test_create():
+    db.create(Ban, IPAddress="test", BanTS=datetime.utcnow())
+    assert db.query(Ban, Ban.IPAddress == "test").first() is not None
+
+
+def test_delete():
+    db.create(Ban, IPAddress="test", BanTS=datetime.utcnow())
+    assert db.query(Ban, Ban.IPAddress == "test").first() is not None
+    db.delete(Ban, Ban.IPAddress == "test")
+    assert db.query(Ban, Ban.IPAddress == "test").first() is None
