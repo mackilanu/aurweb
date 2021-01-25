@@ -19,8 +19,20 @@ loader = jinja2.FileSystemLoader(os.path.join(
 env = jinja2.Environment(loader=loader, autoescape=True,
                          extensions=["jinja2.ext.i18n"])
 
-# Add tr translation filter.
+
+def is_list(value):
+    """ Jinja2 filter indicating if value is a list or not. """
+    return isinstance(value, list)
+
+
+def is_str(value):
+    """ Jinja2 filter indicating if value is a str or not. """
+    return isinstance(value, str)
+
+
 env.filters["tr"] = l10n.tr
+env.filters["is_list"] = is_list
+env.filters["is_str"] = is_str
 
 
 def make_context(request: Request, title: str, next: str = None):
