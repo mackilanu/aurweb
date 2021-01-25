@@ -58,8 +58,8 @@ def test_login_logout():
 
         # Now, let's verify that we receive 403 Forbidden when we
         # try to get /login as an authenticated user.
-        response = request.get("/login")
-        assert response.status_code == int(HTTPStatus.FORBIDDEN)
+        response = request.get("/login", allow_redirects=False)
+        assert response.status_code == int(HTTPStatus.SEE_OTHER)
 
         # Now let's actually logout.
         response = request.post("/logout")
@@ -82,16 +82,16 @@ def test_authenticated_login_forbidden():
 
         # Now, let's verify that we receive 403 Forbidden when we
         # try to get /login as an authenticated user.
-        response = request.get("/login")
-        assert response.status_code == int(HTTPStatus.FORBIDDEN)
+        response = request.get("/login", allow_redirects=False)
+        assert response.status_code == int(HTTPStatus.SEE_OTHER)
 
 
 def test_unauthenticated_logout_unauthorized():
     with client as request:
         # Alright, let's verify that attempting to /logout when not
         # authenticated returns 401 Unauthorized.
-        response = request.get("/logout")
-        assert response.status_code == int(HTTPStatus.UNAUTHORIZED)
+        response = request.get("/logout", allow_redirects=False)
+        assert response.status_code == int(HTTPStatus.SEE_OTHER)
 
 
 def test_login_missing_username():

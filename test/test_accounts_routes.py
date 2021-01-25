@@ -39,9 +39,10 @@ def test_get_passreset_authed_redirects():
     assert authenticated
 
     with client as request:
-        response = request.get("/passreset", cookies={"AURSID": sid})
+        response = request.get("/passreset", cookies={"AURSID": sid},
+                               allow_redirects=False)
 
-    assert response.status_code == int(HTTPStatus.FORBIDDEN)
+    assert response.status_code == int(HTTPStatus.SEE_OTHER)
     assert response.headers.get("location") == "/"
 
 
@@ -86,7 +87,7 @@ def test_post_passreset_authed_redirects():
                                 cookies={"AURSID": sid},
                                 data={"user": "blah"})
 
-    assert response.status_code == int(HTTPStatus.FORBIDDEN)
+    assert response.status_code == int(HTTPStatus.SEE_OTHER)
     assert response.headers.get("location") == "/"
 
 

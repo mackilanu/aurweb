@@ -26,13 +26,13 @@ def login_template(request: Request, next: str, errors: list = None):
 
 
 @router.get("/login", response_class=HTMLResponse)
-@auth_required(False)
+@auth_required(False, redirect="/")
 async def login_get(request: Request, next: str = "/"):
     return login_template(request, next)
 
 
 @router.post("/login", response_class=HTMLResponse)
-@auth_required(False)
+@auth_required(False, redirect="/")
 async def login_post(request: Request,
                      next: str = Form(...),
                      user: str = Form(default=str()),
@@ -65,7 +65,7 @@ async def login_post(request: Request,
 
 
 @router.get("/logout")
-@auth_required()
+@auth_required(redirect="/")
 async def logout(request: Request, next: str = "/"):
     """ A GET and POST route for logging out.
 
@@ -84,6 +84,6 @@ async def logout(request: Request, next: str = "/"):
 
 
 @router.post("/logout")
-@auth_required()
+@auth_required(redirect="/")
 async def logout_post(request: Request, next: str = "/"):
     return await logout(request=request, next=next)

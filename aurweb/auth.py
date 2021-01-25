@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from starlette.authentication import AuthCredentials, AuthenticationBackend, AuthenticationError
 from starlette.requests import HTTPConnection
 
+from aurweb.templates import make_context, render_template
 from aurweb.models.session import Session
 from aurweb.models.user import User
 
@@ -39,23 +40,31 @@ class BasicAuthBackend(AuthenticationBackend):
         return AuthCredentials(["authenticated"]), user
 
 
-def auth_required(is_required: bool = True, redirect: str = "/"):
+def auth_required(is_required: bool = True,
+                  redirect: str = "/",
+                  template: tuple = None):
     """ Authentication route decorator.
 
     @param is_required A boolean indicating whether the function requires auth
     @param redirect_to Path to redirect to if is_required isn't True
+    @param template A template tuple: ("template.html", "Template Page")
     """
 
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(request, *args, **kwargs):
             if request.user.is_authenticated() != is_required:
-                # If authentication is required, return UNAUTHORIZED,
-                # otherwise return FORBIDDEN.
-                status_code = int(HTTPStatus.UNAUTHORIZED
-                                  if is_required else
-                                  HTTPStatus.FORBIDDEN)
-                return RedirectResponse(url=redirect, status_code=status_code)
+                status_code = int(HTTPStatus.UNAUTHORIZED)
+                url = "/"
+                if redirect:
+                    status_code = int(HTTPStatus.SEE_OTHER)
+                    url = redirect
+                if template:
+                    path, title = template
+                    context = make_context(request, title)
+                    return render_template(request, path, context,
+                                           status_code=int(HTTPStatus.UNAUTHORIZED))
+                return RedirectResponse(url=url, status_code=status_code)
             return await func(request, *args, **kwargs)
         return wrapper
 
