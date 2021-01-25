@@ -18,10 +18,3 @@ class AccountType:
 
 
 mapper(AccountType, AccountTypes, confirm_deleted_rows=False)
-
-
-def get_account_type(name):
-    """ Warning: This is being deprecated by the general query function. """
-    from aurweb.db import session
-    return session.query(AccountType).filter(
-        AccountType.AccountType == name).first()
