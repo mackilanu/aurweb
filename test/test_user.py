@@ -5,11 +5,13 @@ from datetime import datetime
 import bcrypt
 import pytest
 
+import aurweb.auth
 import aurweb.config
 
 from aurweb.db import query
 from aurweb.models.account_type import AccountType
 from aurweb.models.ban import Ban
+from aurweb.models.session import Session
 from aurweb.models.user import User
 from aurweb.testing import setup_test_db
 from aurweb.testing.models import make_session, make_user
@@ -35,6 +37,9 @@ def test_user_login_logout():
     """ Test creating a user and reading its columns. """
     from aurweb.db import session
 
+    # Assert that make_user created a valid user.
+    assert bool(user.ID)
+
     # Test authentication.
     assert user.authenticate("testPassword")
     assert not user.authenticate("badPassword")
@@ -46,16 +51,23 @@ def test_user_login_logout():
     assert not user.login(request, "badPassword")[0]
     assert not user.is_authenticated()
 
-    ok, _ = user.login(request, "testPassword")
+    ok, sid = user.login(request, "testPassword")
     assert ok
     assert user.is_authenticated()
+    assert "AURSID" in request.cookies
 
-    assert bool(user.ID)
+    # Expect that User session relationships work right.
+    user_session = session.query(Session).filter(
+        Session.UsersID == user.ID).first()
+    assert user_session == user.session
+    assert user.session.SessionID == sid
+    assert user.session.User == user
 
     # Search for the user via query API.
     result = session.query(User).filter(User.ID == user.ID).first()
 
     # Compare the result and our original user.
+    assert result == user
     assert result.ID == user.ID
     assert result.AccountType.ID == user.AccountType.ID
     assert result.Username == user.Username
@@ -127,13 +139,18 @@ def test_legacy_user_authentication():
 
 
 def test_user_login_with_outdated_sid():
+    from aurweb.db import session
+
     # Make a session with a LastUpdateTS 5 seconds ago, causing
     # user.login to update it with a new sid.
-    make_session(UsersID=user.ID, SessionID="stub",
-                 LastUpdateTS=datetime.utcnow().timestamp() - 5)
+    _session = make_session(UsersID=user.ID, SessionID="stub",
+                            LastUpdateTS=datetime.utcnow().timestamp() - 5)
     authenticated, sid = user.login(Request(), "testPassword")
     assert authenticated and user.is_authenticated()
     assert sid != "stub"
+
+    session.delete(_session)
+    session.commit()
 
 
 def test_user_update_password():
