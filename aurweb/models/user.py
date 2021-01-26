@@ -164,6 +164,11 @@ class User:
         request.cookies["AURSID"] = self.session.SessionID
         return (self.authenticated, sid)
 
+    def has_credential(self, credential: str, approved: list = tuple()):
+        import aurweb.auth
+        cred = getattr(aurweb.auth, credential)
+        return aurweb.auth.has_credential(self, cred, approved)
+
     def logout(self, request):
         del request.cookies["AURSID"]
         self.authenticated = False
