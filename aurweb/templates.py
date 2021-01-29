@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 
 import aurweb.config
 
-from aurweb import l10n, time
+from aurweb import captcha, l10n, time
 
 # Prepare jinja2 objects.
 loader = jinja2.FileSystemLoader(os.path.join(
@@ -34,6 +34,8 @@ def is_str(value):
 env.filters["tr"] = l10n.tr
 env.filters["is_list"] = is_list
 env.filters["is_str"] = is_str
+env.filters["captcha_salt"] = captcha.captcha_salt_filter
+env.filters["captcha_cmdline"] = captcha.captcha_cmdline_filter
 
 
 def make_context(request: Request, title: str, next: str = None):
