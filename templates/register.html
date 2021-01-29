@@ -1,0 +1,18 @@
+{% extends "partials/layout.html" %}
+
+{% block pageContent %}
+    <div class="box">
+        <h2>{% trans %}Register{% endtrans %}</h2>
+
+        {% if errors %}
+            {% include "partials/error.html" %}
+        {% else %}
+            <p>
+                {% trans %}Use this form to create an account.{% endtrans %}
+            </p>
+        {% endif %}
+
+        {% set form_type = "NewAccount" %}
+        {% include "partials/account_form.html" %}
+    </div>
+{% endblock %}
