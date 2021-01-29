@@ -7,6 +7,7 @@ from datetime import datetime
 from http import HTTPStatus
 from subprocess import Popen
 
+import lxml.html
 import pytest
 
 from fastapi.testclient import TestClient
@@ -554,3 +555,253 @@ def test_post_register_with_ssh_pubkey():
     new_user = query(User, User.Username == "newUser").first()
     delete(SSHPubKey, SSHPubKey.UserID == new_user.ID)
     delete(User, User.Username == "newUser")
+
+
+def test_get_account_edit():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    with client as request:
+        response = request.get("/account/test/edit", cookies={
+            "AURSID": sid
+        }, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+
+def test_get_account_edit_unauthorized():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    create(User, Username="test2", Email="test2@example.org",
+           Passwd="testPassword")
+
+    with client as request:
+        # Try to edit `test2` while authenticated as `test`.
+        response = request.get("/account/test2/edit", cookies={
+            "AURSID": sid
+        }, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.UNAUTHORIZED)
+
+
+def test_post_account_edit():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test666@example.org",
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+    # Assert that the email field on the returned webpage
+    # was updated to what we set it to.
+    content = response.content.decode()
+    assert 'value="test666@example.org"' in content
+
+
+def test_post_account_edit_language():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "L": "de",  # German
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+    # Parse the response content html into an lxml root, then make
+    # sure we see a 'de' option selected on the page.
+    content = response.content.decode()
+    root = lxml.html.fromstring(content)
+    lang_nodes = root.xpath('//option[@value="de"]/@selected')
+    assert lang_nodes and len(lang_nodes) != 0
+    assert lang_nodes[0] == "selected"
+
+
+def test_post_account_edit_timezone():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "TZ": "CET",
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+    # Parse the response content html into an lxml root, then make
+    # sure we see a 'CET' option selected on the page.
+    content = response.content.decode()
+    root = lxml.html.fromstring(content)
+    tz_nodes = root.xpath('//option[@value="CET"]/@selected')
+    assert tz_nodes and len(tz_nodes) != 0
+    assert tz_nodes[0] == "selected"
+
+
+def test_post_account_edit_error_missing_password():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "TZ": "CET",
+        "passwd": ""
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.BAD_REQUEST)
+
+    content = response.content.decode()
+    assert "Invalid password." in content
+
+
+def test_post_account_edit_error_invalid_password():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "TZ": "CET",
+        "passwd": "invalid"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.BAD_REQUEST)
+
+    content = response.content.decode()
+    assert "Invalid password." in content
+
+
+def test_post_account_edit_error_unauthorized():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    test2 = create(User, Username="test2", Email="test2@example.org",
+                   Passwd="testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "TZ": "CET",
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        # Attempt to edit 'test2' while logged in as 'test'.
+        response = request.post("/account/test2/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.UNAUTHORIZED)
+
+    delete(User, User.ID == test2.ID)
+
+
+def test_post_account_edit_ssh_pub_key():
+    tmpdir = tempfile.mkdtemp()
+
+    # Create a public key with ssh-keygen (this adds ssh-keygen as a
+    # dependency to passing this test).
+    with open("/dev/null", "w") as null:
+        proc = Popen(["ssh-keygen", "-f", f"{tmpdir}/test.ssh", "-N", ""],
+                     stdout=null, stderr=null)
+        proc.wait()
+    assert proc.returncode == 0
+
+    # Read in the public key, then delete the temp dir we made.
+    pk = open(f"{tmpdir}/test.ssh.pub").read().rstrip()
+    shutil.rmtree(tmpdir)
+
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "PK": pk,
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+    # Now let's update what's already there to gain coverage over that path.
+    tmpdir = tempfile.mkdtemp()
+    with open("/dev/null", "w") as null:
+        proc = Popen(["ssh-keygen", "-f", f"{tmpdir}/test.ssh", "-N", ""],
+                     stdout=null, stderr=null)
+        proc.wait()
+    assert proc.returncode == 0
+
+    # Read in the public key, then delete the temp dir we made.
+    pk = open(f"{tmpdir}/test.ssh.pub").read().rstrip()
+    shutil.rmtree(tmpdir)
+
+    post_data["PK"] = pk
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+
+def test_post_account_edit_password():
+    request = Request()
+    _, sid = user.login(request, "testPassword")
+
+    post_data = {
+        "U": "test",
+        "E": "test@example.org",
+        "P": "newPassword",
+        "C": "newPassword",
+        "passwd": "testPassword"
+    }
+
+    with client as request:
+        response = request.post("/account/test/edit", cookies={
+            "AURSID": sid
+        }, data=post_data, allow_redirects=False)
+
+    assert response.status_code == int(HTTPStatus.OK)
+
+    assert user.authenticate("newPassword")
