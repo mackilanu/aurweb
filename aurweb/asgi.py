@@ -1,8 +1,7 @@
 import http
 import os
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -12,11 +11,24 @@ import aurweb.config
 from aurweb.auth import BasicAuthBackend
 from aurweb.db import get_engine
 from aurweb.routers import accounts, auth, html, sso
+from aurweb.templates import make_context, render_template
+
+
+async def not_found(request, exc):
+    context = make_context(request, "Not Found")
+    return render_template(request, "not_found.html", context,
+                           status_code=int(http.HTTPStatus.NOT_FOUND))
+
+exception_handlers = {
+    404: not_found
+}
 
 routes = set()
 
 # Setup the FastAPI app.
-app = FastAPI()
+app = FastAPI(exception_handlers=exception_handlers)
+
+# Mount static directories.
 app.mount("/static/css",
           StaticFiles(directory=os.path.join(
               aurweb.config.get("options", "aurwebdir"), "web/html/css")),
@@ -56,14 +68,3 @@ async def app_startup():
 routes = {route.path for route in app.routes}
 routes.update({route.path for route in sso.router.routes})
 routes.update({route.path for route in html.router.routes})
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    """
-    Dirty HTML error page to replace the default JSON error responses.
-    In the future this should use a proper Arch-themed HTML template.
-    """
-    phrase = http.HTTPStatus(exc.status_code).phrase
-    return HTMLResponse(f"<h1>{exc.status_code} {phrase}</h1><p>{exc.detail}</p>",
-                        status_code=exc.status_code)
