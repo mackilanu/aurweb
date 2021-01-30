@@ -59,6 +59,12 @@ def auth_required(is_required: bool = True,
                   template: tuple = None):
     """ Authentication route decorator.
 
+    If redirect is given, the user will be redirected if the auth state
+    does not match is_required.
+
+    If template is given, it will be rendered with Unauthorized if
+    is_required does not match and take priority over redirect.
+
     @param is_required A boolean indicating whether the function requires auth
     @param redirect_to Path to redirect to if is_required isn't True
     @param template A template tuple: ("template.html", "Template Page")
