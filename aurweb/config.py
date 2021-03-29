@@ -1,7 +1,6 @@
 import configparser
 import os
 
-""" Global constant variables. """
 AURWEB_VERSION = "v5.0.0"
 
 _parser = None
@@ -21,6 +20,13 @@ def _get_parser():
         _parser.read(path)
 
     return _parser
+
+
+def rehash():
+    """ Globally rehash the configuration parser. """
+    global _parser
+    _parser = None
+    _get_parser()
 
 
 def get(section, option):
