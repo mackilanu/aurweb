@@ -2,13 +2,16 @@ import http
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 import aurweb.config
 
-from aurweb.routers import sso
+from aurweb.routers import html, sso
 
+# Setup the FastAPI app.
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="web/html"), name="static")
 
 session_secret = aurweb.config.get("fastapi", "session_secret")
 if not session_secret:
@@ -17,6 +20,7 @@ if not session_secret:
 app.add_middleware(SessionMiddleware, secret_key=session_secret)
 
 app.include_router(sso.router)
+app.include_router(html.router)
 
 
 @app.exception_handler(HTTPException)

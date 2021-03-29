@@ -1,6 +1,9 @@
 import configparser
 import os
 
+""" Global constant variables. """
+AURWEB_VERSION = "v5.0.0"
+
 _parser = None
 
 
