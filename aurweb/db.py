@@ -51,7 +51,8 @@ def get_engine():
     global engine, session, Session
 
     if engine is None:
-        engine = create_engine(get_sqlalchemy_url())
+        engine = create_engine(get_sqlalchemy_url(),
+                               connect_args={"check_same_thread": False})
         Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         session = Session()
 
