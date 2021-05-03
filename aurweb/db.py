@@ -67,11 +67,7 @@ def get_sqlalchemy_url():
             username=aurweb.config.get('database', 'user'),
             password=aurweb.config.get('database', 'password'),
             host=aurweb.config.get('database', 'host'),
-            database=aurweb.config.get('database', 'name'),
-            query={
-                'unix_socket': aurweb.config.get('database', 'socket'),
-                'buffered': True,
-            },
+            database=aurweb.config.get('database', 'name')
         )
     elif aur_db_backend == 'sqlite':
         return sqlalchemy.engine.url.URL(
