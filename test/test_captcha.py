@@ -33,13 +33,9 @@ def test_captcha_challenge_answer():
     challenge = captcha.get_captcha_challenge(salt)
 
     token = captcha.get_captcha_token(salt)
-    answer1 = captcha.get_captcha_answer(token)
+    challenge2 = f"LC_ALL=C pacman -V|sed -r 's#[0-9]+#{token}#g'|md5sum|cut -c1-6"
 
-    proc = Popen(["bash", "-c", challenge], stdout=PIPE)
-    out, _ = proc.communicate()
-    answer2 = out.decode().rstrip()
-
-    assert answer1 == answer2
+    assert challenge == challenge2
 
 
 def test_captcha_salt_filter():
