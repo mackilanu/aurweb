@@ -7,8 +7,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import aurweb.config
 
-from aurweb.db import get_engine
 from aurweb.routers import html, sso
+
+routes = set()
 
 # Setup the FastAPI app.
 app = FastAPI()
@@ -22,19 +23,21 @@ app.mount("/static/images",
           StaticFiles(directory="web/html/images"),
           name="static_images")
 
+session_secret = aurweb.config.get("fastapi", "session_secret")
+if not session_secret:
+    raise Exception("[fastapi] session_secret must not be empty")
 
-@app.on_event("startup")
-async def app_startup():
-    session_secret = aurweb.config.get("fastapi", "session_secret")
-    if not session_secret:
-        raise Exception("[fastapi] session_secret must not be empty")
+app.add_middleware(SessionMiddleware, secret_key=session_secret)
 
-    app.add_middleware(SessionMiddleware, secret_key=session_secret)
-    app.include_router(sso.router)
-    app.include_router(html.router)
+app.include_router(sso.router)
+app.include_router(html.router)
 
-    get_engine()
-
+# NOTE: Always keep this dictionary updated with all routes
+# that the application contains. We use this to check for
+# parameter value verification.
+routes = {route.path for route in app.routes}
+routes.update({route.path for route in sso.router.routes})
+routes.update({route.path for route in html.router.routes})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):

@@ -44,6 +44,16 @@ def test_language():
     assert response.status_code == int(HTTPStatus.SEE_OTHER)
 
 
+def test_language_invalid_next():
+    """ Test an invalid next route at '/language'. """
+    post_data = {
+        "set_lang": "de",
+        "next": "/BLAHBLAHFAKE"
+    }
+    with client as req:
+        response = req.post("/language", data=post_data)
+    assert response.status_code == int(HTTPStatus.BAD_REQUEST)
+
 def test_language_query_params():
     """ Test the language post route with query params. """
     next = urllib.parse.quote_plus("/")

@@ -2,6 +2,7 @@
 decorators in some way; more complex routes should be defined in their
 own modules and imported here. """
 from http import HTTPStatus
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -29,6 +30,12 @@ async def language(request: Request,
     setting the language on any page, we want to preserve query
     parameters across the redirect.
     """
+    from aurweb.asgi import routes
+    if unquote(next) not in routes:
+        return HTMLResponse(
+                b"Invalid 'next' parameter not found in set of routes.",
+                status_code=400)
+
     query_string = "?" + q if q else str()
     response = RedirectResponse(url=f"{next}{query_string}",
                                 status_code=int(HTTPStatus.SEE_OTHER))
